@@ -32,7 +32,9 @@ void str_echo (int fd)
 
 again:
 	while ( (n = read (fd, buf, 256)) > 0)
+	{
 		writen (fd, buf, n);
+	}
 
 	if (n < 0)
 	{

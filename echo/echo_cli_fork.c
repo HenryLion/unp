@@ -16,8 +16,16 @@ void str_cli (FILE *fp, int sock_fd)
 			Close (sock_fd);
 			return;
 		}
-		nwrite = writen (sock_fd, buf, strlen (buf));
-		nread = read (sock_fd, r_buf, nwrite);
+		nwrite = writen (sock_fd, buf, 1);
+		sleep(1);
+		if ( writen (sock_fd, buf+1, strlen(buf)-1) < 0)
+		{
+			err_sys ("write error");
+		}
+		if ( (nread = readn (sock_fd, r_buf, strlen(buf))) == 0)
+		{
+			err_quit ("str_cli: server terminated prematurely");
+		}
 		r_buf[nread] = '\0';
 		fputs (r_buf, stdout);
 	}
