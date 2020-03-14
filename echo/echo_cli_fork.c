@@ -3,7 +3,7 @@
 // 本程序和echo_srv_fork.c配对，是其的客户端程序
 // 客户端的动作是从标准输入读取一行文本，发送给服务端，然后再从服务端读回文本并显示在标准输出
 
-void str_cli (FILE *fp, int sock_fd)
+void str_cli_0 (FILE *fp, int sock_fd) // 这个函数的问题是当服务器进程退出后，次函数不能及时的处理，因为其阻塞在fgets上
 {
 	char buf[256];
 	char r_buf[256];
@@ -28,6 +28,40 @@ void str_cli (FILE *fp, int sock_fd)
 		}
 		r_buf[nread] = '\0';
 		fputs (r_buf, stdout);
+	}
+}
+
+void str_cli (FILE *fp, int sock_fd)
+{
+	int maxfd;
+	fd_set r_set;
+	FD_ZERO (&r_set);
+	char r_buf[256];
+	char w_buf[256];
+	int nwrite;
+	while (1)
+	{
+		FD_SET (fileno(fp), &r_set);
+		FD_SET (sock_fd, &r_set);
+		maxfd = max (fileno(fp), sock_fd) + 1;
+		select (maxfd, &r_set, NULL, NULL, NULL);
+		if (FD_ISSET (fileno (fp), &r_set))
+		{
+			fgets (w_buf, 256, fp);
+			if (strncmp (w_buf, "quit", 4) == 0)
+			{
+				close (sock_fd);
+				exit (0);
+			}
+			writen (sock_fd, w_buf, strlen (w_buf));
+		}
+
+		if (FD_ISSET (sock_fd, &r_set))
+		{
+			if (Readline (sock_fd, r_buf, 256) == 0)	
+				err_quit ("str_cli: server terminated prematurely");
+			fputs (r_buf, stdout);
+		}
 	}
 }
 
