@@ -19,7 +19,7 @@ typedef struct msg_header
 typedef struct register_msg
 {
 	char name[64];
-	char passward[64];
+	char password[64];
 } register_msg_t;
 
 

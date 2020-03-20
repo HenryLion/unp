@@ -27,7 +27,6 @@ int main (void)
 	conn_fd = Accept (listen_fd, NULL, NULL);
 
 	readn (conn_fd, msg, sizeof (msg_header_t));
-	printf ("read from client...\n");
 
 	p_head = (msg_header_t*)msg;
 
@@ -37,8 +36,8 @@ int main (void)
 	{
 		case MSG_REGISTER:
 		{
-			readn (conn_fd, ptr, p_head->m_len);
-			snprintf (w_buf, 1024, "hi, %s I received your register msg", ((register_msg_t*)ptr)->name);
+			readn (conn_fd, ptr, ntohl(p_head->m_len));
+			snprintf (w_buf, 1024, "hi, %s I received your register msg, your pw is %s.", ((register_msg_t*)ptr)->name, ((register_msg_t*)ptr)->password);
 			writen (conn_fd, w_buf, strlen (w_buf));
 		}
 		default:

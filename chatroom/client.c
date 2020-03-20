@@ -21,23 +21,21 @@ int execute_register_msg (int sock_fd)
 	register_msg_t r_msg;
 	bzero (&r_msg, sizeof (r_msg));
 	printf ("please input your name: ");
-	scanf ("%s\n", r_msg.name);
-
+	scanf ("%s", r_msg.name);
+	getchar ();
 	printf ("please input your pw: ");
-	scanf ("%s\n", r_msg.passward);
-
-
+	scanf ("%s", r_msg.password);
+	getchar ();
 	msg_header_t *p_head = (msg_header_t *)msg;
 	p_head->m_type = MSG_REGISTER;
 	p_head->m_len = htonl (sizeof (r_msg));
+	
 
 	ptr = msg + sizeof (msg_header_t);
 	memcpy (ptr, &r_msg, sizeof (r_msg));
 
-	printf ("write to server...\n");
-	writen (sock_fd, msg, sizeof(msg_header_t) + p_head->m_len);
+	Writen (sock_fd, msg, sizeof(msg_header_t) + sizeof(r_msg));
 
-	// should read from server to judge correct or error...
 	read (sock_fd, r_buf, 1024);
 	printf ("%s\n", r_buf);
 }
@@ -64,12 +62,12 @@ int main (int argc, char *argv[])
 
 	sock_fd = Socket (AF_INET, SOCK_STREAM, 0);
 
-	Connect (sock_fd, (struct sockaddr *)&servaddr, sizeof (servaddr));
+	connect (sock_fd, (struct sockaddr *)&servaddr, sizeof (servaddr));
 
 	print_prompt ();
 
-	scanf ("%d\n", &choice);
-
+	scanf ("%d", &choice);
+	getchar();
 	switch (choice)
 	{
 		case 1:
