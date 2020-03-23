@@ -1,6 +1,9 @@
 #ifndef _COMMON_DEFINE_H_
 #define _COMMON_DEFINE_H_
 
+#define NAME_LEN 64
+#define PW_LEN NAME_LEN 
+
 typedef enum msg_type
 {
 	MSG_REGISTER,
@@ -18,11 +21,17 @@ typedef struct msg_header
 
 typedef struct register_msg
 {
-	char name[64];
-	char password[64];
+	char name[NAME_LEN];
+	char password[PW_LEN];
 } register_msg_t;
 
+// 保存用户名和用户连接的sock_fd
 
+typedef struct user_info
+{
+	char name[NAME_LEN];
+	int conn_fd;
+} user_info_t;
 
 
 #endif
