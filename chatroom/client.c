@@ -1,19 +1,18 @@
 #include "unp.h"
 #include "common_define.h"
 
-
 void print_prompt ()
 {
 	printf ("*****************************\n");
-	printf ("please choose operation:\n");
 	printf ("[1] register\n");
 	printf ("[2] log in\n");
 	printf ("[3] file send\n");
 	printf ("[4] log out\n");
 	printf ("*****************************\n");
+	printf ("please choose operation: ");
 }
 
-int execute_register_msg (int sock_fd)
+int execute_reg_log_msg (int sock_fd, e_msg_type m_type)
 {
 	char msg[1024] = {0};
 	char r_buf[1024] = {0};
@@ -27,10 +26,9 @@ int execute_register_msg (int sock_fd)
 	scanf ("%s", r_msg.password);
 	getchar ();
 	msg_header_t *p_head = (msg_header_t *)msg;
-	p_head->m_type = MSG_REGISTER;
+	p_head->m_type = m_type;
 	p_head->m_len = htonl (sizeof (r_msg));
 	
-
 	ptr = msg + sizeof (msg_header_t);
 	memcpy (ptr, &r_msg, sizeof (r_msg));
 
@@ -40,7 +38,10 @@ int execute_register_msg (int sock_fd)
 	printf ("%s\n", r_buf);
 }
 
-
+int execute_chat_msg (int sock_fd)
+{
+	return 0;	
+}
 
 int main (int argc, char *argv[])
 {
@@ -64,16 +65,26 @@ int main (int argc, char *argv[])
 
 	connect (sock_fd, (struct sockaddr *)&servaddr, sizeof (servaddr));
 
-	print_prompt ();
-
-	scanf ("%d", &choice);
-	getchar();
-	switch (choice)
+	while (1)
 	{
-		case 1:
-			execute_register_msg (sock_fd);					
-		default:
-			break;
+		print_prompt ();
+
+		scanf ("%d", &choice);
+		getchar();
+		switch ((e_msg_type)choice)
+		{
+			case MSG_REGISTER:
+				execute_reg_log_msg (sock_fd, MSG_REGISTER);
+				break;
+			case MSG_LOG_IN:
+				execute_reg_log_msg (sock_fd, MSG_LOG_IN);
+				break;
+			case MSG_DATA:
+				execute_chat_msg (sock_fd);
+				break;
+			default:
+				break;
+		}
 	}
 
 	return 0;

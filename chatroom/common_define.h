@@ -3,10 +3,12 @@
 
 #define NAME_LEN 64
 #define PW_LEN NAME_LEN 
+#define OK 0
+#define ERROR -1
 
 typedef enum msg_type
 {
-	MSG_REGISTER,
+	MSG_REGISTER = 1,
 	MSG_LOG_IN,
 	MSG_DATA,
 	MSG_FILE_SEND,
@@ -30,6 +32,7 @@ typedef struct register_msg
 typedef struct user_info
 {
 	char name[NAME_LEN];
+	char pw[PW_LEN];
 	int conn_fd;
 } user_info_t;
 

@@ -4,7 +4,34 @@
 #define CLIENT_MAX_NUM 1024
 #define MAX_MSG_LEN 1024
 
-int handle_client_msg (int cli_fd, int user_idx, user_info_t *user_infos, fd_set *rset)
+int handle_login_msg (int cli_fd, msg_header_t *p_head, user_info_t *user_infos, int cur_max_cli_num)
+{
+	char r_buf[MAX_MSG_LEN] = {0};
+	char w_buf[MAX_MSG_LEN] = {0};
+	register_msg_t *p_msg = NULL;
+	int i;
+	if (NULL == p_head || NULL == user_infos)
+		return ERROR;
+	readn (cli_fd, r_buf, ntohl(p_head->m_len));
+	p_msg = (register_msg_t *)r_buf;
+	for (i = 0; i < cur_max_cli_num; ++i)
+	{
+		if ( !strcmp (user_infos[i].name, p_msg->name) && !strcmp (user_infos[i].pw, p_msg->password) )
+			break;
+	}
+	if (i == cur_max_cli_num)
+	{
+		snprintf (w_buf, MAX_MSG_LEN, "no client named %s, please register first\n", p_msg->name);
+	}
+	else
+	{
+		snprintf (w_buf, MAX_MSG_LEN, "Hi %s, you log in success, now you can chat with your friends\n", p_msg->name);
+	}
+	writen (cli_fd, w_buf, strlen (w_buf));
+	return 0;
+}
+
+int handle_client_msg (int cli_fd, int user_idx, user_info_t *user_infos, fd_set *rset, int cur_max_cli_num)
 {
 	int nread;
 	char *ptr;
@@ -17,7 +44,7 @@ int handle_client_msg (int cli_fd, int user_idx, user_info_t *user_infos, fd_set
 		close (cli_fd);
 		FD_CLR (cli_fd, rset);
 		user_infos[user_idx].conn_fd = -1;
-		memset (user_infos[user_idx].name, 0, NAME_LEN);
+		// memset (user_infos[user_idx].name, 0, NAME_LEN); // 用户名不进行清零以便在登录的时候判断用户是否已经注册
 		return 0;
 	}
 	p_head = (msg_header_t*)msg;
@@ -29,8 +56,14 @@ int handle_client_msg (int cli_fd, int user_idx, user_info_t *user_infos, fd_set
 			readn (cli_fd, ptr, ntohl(p_head->m_len));
 			snprintf (w_buf, 1024, "hi, %s I received your register msg, your pw is %s.", ((register_msg_t*)ptr)->name, ((register_msg_t*)ptr)->password);
 			memcpy (user_infos[user_idx].name, ((register_msg_t*)ptr)->name, NAME_LEN);
+			memcpy (user_infos[user_idx].pw, ((register_msg_t*)ptr)->password, PW_LEN);
 			writen (cli_fd, w_buf, strlen (w_buf));
 			break;
+		}
+		case MSG_LOG_IN:
+		{
+			handle_login_msg (cli_fd, p_head, user_infos, cur_max_cli_num);
+			break;	
 		}
 		default:
 			printf ("default branch\n");
@@ -77,6 +110,12 @@ int main (void)
 
 	while (1)
 	{
+		for (i = 0; i <= max_i; ++i)
+		{
+			if (cli_infos[i].conn_fd != -1 || (strlen (cli_infos[i].name) != 0) )
+				printf ("user name is: %s, conn_fd is: %d\n", cli_infos[i].name, cli_infos[i].conn_fd);
+		}
+
 		rset = allset;
 		nready = Select (maxfd+1, &rset, NULL, NULL, NULL);
 		if (FD_ISSET (listen_fd, &rset))
@@ -85,7 +124,7 @@ int main (void)
 			// 有新的客户连接则在cli_infos数组中找位置存放客户信息
 			for (i = 0; i < CLIENT_MAX_NUM; ++i)
 			{
-				if (cli_infos[i].conn_fd == -1)
+				if ( (cli_infos[i].conn_fd == -1) && (strlen (cli_infos[i].name) == 0) )
 				{
 					cli_infos[i].conn_fd = conn_fd;
 					break;
@@ -104,7 +143,7 @@ int main (void)
 			if (i > max_i)
 				max_i = i;
 
-			handle_client_msg (conn_fd, i, cli_infos, &allset);
+			handle_client_msg (conn_fd, i, cli_infos, &allset, max_i);
 			if (--nready <= 0)
 				continue;
 		}
@@ -115,7 +154,7 @@ int main (void)
 				continue;
 			if ( FD_ISSET (sock_fd, &rset))
 			{
-				handle_client_msg (sock_fd, i, cli_infos, &allset);
+				handle_client_msg (sock_fd, i, cli_infos, &allset, max_i);
 			}
 
 			if (--nready <= 0)
