@@ -6,6 +6,8 @@
 #define OK 0
 #define ERROR -1
 
+#define MAX_MSG_LEN 1024
+
 typedef enum msg_type
 {
 	MSG_REGISTER = 1,
