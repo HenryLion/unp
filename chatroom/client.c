@@ -1,14 +1,15 @@
 #include "unp.h"
 #include "common_define.h"
 
+int execute_chat_msg (FILE *, int);
+
 void print_prompt ()
 {
 	printf ("*****************************\n");
 	printf ("[1] register\n");
 	printf ("[2] log in\n");
-	printf ("[3] chat\n");
-	printf ("[4] file send\n");
-	printf ("[5] log out\n");
+	printf ("[3] file send\n");
+	printf ("[4] log out\n");
 	printf ("*****************************\n");
 	printf ("please choose operation: ");
 }
@@ -37,6 +38,12 @@ int execute_reg_log_msg (int sock_fd, e_msg_type m_type)
 
 	read (sock_fd, r_buf, 1024);
 	printf ("%s\n", r_buf);
+
+	if (m_type == MSG_LOG_IN)
+	{
+		execute_chat_msg (stdin, sock_fd);
+	}
+	
 }
 
 int execute_chat_msg (FILE *fp, int sock_fd)
@@ -63,14 +70,12 @@ int execute_chat_msg (FILE *fp, int sock_fd)
 		{
 			if (fgets (p_msg_body, MAX_MSG_LEN-sizeof(msg_header_t), fp) == NULL)
 				return -1;
-			p_head->m_len = strlen (p_msg_body);
-			printf ("write %d chs to server\n", (p_head->m_len));
+			p_head->m_len = htonl(strlen (p_msg_body));
 			writen (sock_fd, w_buf, strlen (p_msg_body) + sizeof (msg_header_t));
-			printf ("write to server finish, sock_fd = %d\n", sock_fd);
 		}
 		if (FD_ISSET (sock_fd, &f_set))
 		{
-			printf ("receive friend's prompt,sock_fd = %d\n", sock_fd);
+			memset (r_buf, 0, sizeof(r_buf));
 			read (sock_fd, r_buf, 1024);
 			fputs (r_buf, stdout);
 		}
@@ -116,9 +121,6 @@ int main (int argc, char *argv[])
 				break;
 			case MSG_LOG_IN:
 				execute_reg_log_msg (sock_fd, MSG_LOG_IN);
-				break;
-			case MSG_DATA:
-				execute_chat_msg (stdin,sock_fd);
 				break;
 			default:
 				break;
