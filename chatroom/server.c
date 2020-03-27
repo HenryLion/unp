@@ -3,6 +3,7 @@
 
 #define CLIENT_MAX_NUM 1024
 
+/* 判断用户是否存在,如果已经存在则返回其在数组中的位置,否则返回-1表示不存在 */
 int is_client_exist (user_info_t *user_infos, int cur_max_cli_num, char *c_name)
 {
 	if (NULL == user_infos || NULL == c_name)
@@ -17,9 +18,9 @@ int is_client_exist (user_info_t *user_infos, int cur_max_cli_num, char *c_name)
 			break;
 	}
 	if (i > cur_max_cli_num)
-		return 0;
+		return -1;
 	else
-		return 1;
+		return i;
 }
 
 int handle_login_msg (int cli_fd, msg_header_t *p_head, user_info_t *user_infos, int cur_max_cli_num)
@@ -104,16 +105,20 @@ int handle_client_msg (int cli_fd, int user_idx, user_info_t *user_infos, fd_set
 		case MSG_REGISTER:
 		{
 			readn (cli_fd, ptr, ntohl(p_head->m_len));
-			if ( !is_client_exist (user_infos, cur_max_cli_num, ((register_msg_t*)ptr)->name) )
+			if ( (idx = is_client_exist (user_infos, cur_max_cli_num, ((register_msg_t*)ptr)->name)) < 0 )
 			{
+				// 用户不存在,第一次注册
 				memcpy (user_infos[user_idx].name, ((register_msg_t*)ptr)->name, NAME_LEN);
 				memcpy (user_infos[user_idx].pw, ((register_msg_t*)ptr)->password, PW_LEN);
-				snprintf (w_buf, MAX_MSG_LEN, "Hi %s, you register successful.", ((register_msg_t*)ptr)->name);
+				snprintf (w_buf, MAX_MSG_LEN, "Hi %s, you register successful, user_idx = %d.", ((register_msg_t*)ptr)->name, user_idx);
 			}
 			else
 			{
-				//user_infos[user_idx].conn_fd = -1;
-				//user_infos[idx].conn_fd = cli_fd;
+				// 用户已经存在
+				// user_infos[user_idx].conn_fd = -1; // 不能将conn_fd赋值-1,否则连接的客户将不能再发送请求消息
+				if (user_infos[idx].conn_fd == -1) // 用户已经存在但是未登录,如果用户已经存在且已经登录，则不能把cli_fd赋值给已存在用户
+					user_infos[idx].conn_fd = cli_fd;
+
 				snprintf (w_buf, MAX_MSG_LEN, "Name %s has existed,please choose another one.", ((register_msg_t*)ptr)->name); 
 			}
 			writen (cli_fd, w_buf, strlen (w_buf));
@@ -168,6 +173,19 @@ int get_client_info (const char* file_name,user_info_t *cli_infos)
 	fclose (fp);
 }
 
+
+void print_user_info (char * prompt, user_info_t *cli)
+{
+	int i;
+	printf ("%s\n", prompt);
+	for (i = 0; i < 3; ++i)
+	{
+		printf ("%s == %s\n", cli[i].name, cli[i].pw);
+	}
+	printf ("---------------------------\n");
+	return ;
+}
+
 int main (void)
 {
 	int listen_fd, conn_fd, sock_fd;
@@ -177,10 +195,8 @@ int main (void)
 	int max_i = -1;
 	int nready;
 	FILE *c_fp = NULL;
-/*
-	if (is_file_exist ("./client.info"))
-		max_i = get_client_info ("./client.info", cli_infos);
 	
+/*
 	c_fp = fopen ("./client.info", "a+");
 */
 	struct sockaddr_in sockaddr;
@@ -191,12 +207,16 @@ int main (void)
 	sockaddr.sin_addr.s_addr = htonl (INADDR_ANY);
 
 	listen_fd = Socket (AF_INET, SOCK_STREAM, 0);
-
+	int on = 1;
+	setsockopt (listen_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 	Bind (listen_fd, (struct sockaddr*)&sockaddr, sizeof(sockaddr));
 
 	Listen (listen_fd, 5);
 
 	memset (cli_infos, 0, sizeof (cli_infos));
+
+	if (is_file_exist ("./client.info"))
+		max_i = get_client_info ("./client.info", cli_infos);
 
 	for (i = 0; i < CLIENT_MAX_NUM; ++i)
 	{
@@ -210,19 +230,12 @@ int main (void)
 
 	while (1)
 	{
-		/*
-		for (i = 0; i <= max_i; ++i)
-		{
-			if (cli_infos[i].conn_fd != -1 || (strlen (cli_infos[i].name) != 0) )
-				printf ("user name is: %s, conn_fd is: %d\n", cli_infos[i].name, cli_infos[i].conn_fd);
-		}
-		*/
 		rset = allset;
 		nready = Select (maxfd+1, &rset, NULL, NULL, NULL);
 		if (FD_ISSET (listen_fd, &rset))
 		{
 			conn_fd = Accept (listen_fd, NULL, NULL);
-			// 有新的客户连接则在cli_infos数组中找位置存放客户信息
+			// 有新的客户连接则在cli_infos数组中找位置存放客户信息,但是后续不一定就存储在此位置，因为用户可能之前已经存在
 			for (i = 0; i < CLIENT_MAX_NUM; ++i)
 			{
 				if ( (cli_infos[i].conn_fd == -1) && (strlen (cli_infos[i].name) == 0) )
@@ -253,6 +266,7 @@ int main (void)
 				continue;
 			if ( FD_ISSET (sock_fd, &rset))
 			{
+
 				handle_client_msg (sock_fd, i, cli_infos, &allset, max_i);
 				if (--nready <= 0)
 					break;
