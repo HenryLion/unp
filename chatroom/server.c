@@ -73,11 +73,26 @@ int handle_data_msg (int cli_fd, msg_header_t* p_head, user_info_t *user_infos, 
 
 	readn (cli_fd, r_buf, ntohl (p_head->m_len));
 	snprintf (w_buf, MAX_MSG_LEN, "%s say :\r\n\t%s", client_name, r_buf);
-	for (i = 0; i <= cur_max_cli_num; ++i)
+	if ( !strcmp (p_head->chat_with, "alluser") ) // send msg to all clients
 	{
-		if ( (user_infos[i].conn_fd != -1) && (user_infos[i].conn_fd != cli_fd) )
+		for (i = 0; i <= cur_max_cli_num; ++i)
 		{
-			writen (user_infos[i].conn_fd, w_buf, strlen(w_buf));
+			if ( (user_infos[i].conn_fd != -1) && (user_infos[i].conn_fd != cli_fd) )
+			{
+				writen (user_infos[i].conn_fd, w_buf, strlen(w_buf));
+			}
+		}
+	}
+	else  // send msg to specific clients
+	{
+		for ( i = 0; i <= cur_max_cli_num; ++i )
+		{
+			if (user_infos[i].conn_fd == cli_fd)
+				continue;
+			if ( !strcmp (p_head->chat_with, user_infos[i].name))
+			{
+				writen (user_infos[i].conn_fd, w_buf, strlen(w_buf));
+			}
 		}
 	}
 	return 0;
