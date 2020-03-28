@@ -117,10 +117,8 @@ int main (int argc, char *argv[])
 		switch ((e_msg_type)choice)
 		{
 			case MSG_REGISTER:
-				execute_reg_log_msg (sock_fd, MSG_REGISTER);
-				break;
 			case MSG_LOG_IN:
-				execute_reg_log_msg (sock_fd, MSG_LOG_IN);
+				execute_reg_log_msg (sock_fd, (e_msg_type)choice);
 				break;
 			default:
 				break;

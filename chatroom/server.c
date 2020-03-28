@@ -23,7 +23,7 @@ int is_client_exist (user_info_t *user_infos, int cur_max_cli_num, char *c_name)
 		return i;
 }
 
-int handle_login_msg (int cli_fd, msg_header_t *p_head, user_info_t *user_infos, int cur_max_cli_num)
+int handle_login_msg (int cli_fd, int user_idx, msg_header_t *p_head, user_info_t *user_infos, int cur_max_cli_num)
 {
 	char r_buf[MAX_MSG_LEN] = {0};
 	char w_buf[MAX_MSG_LEN] = {0};
@@ -40,10 +40,12 @@ int handle_login_msg (int cli_fd, msg_header_t *p_head, user_info_t *user_infos,
 	}
 	if (i > cur_max_cli_num)
 	{
-		snprintf (w_buf, MAX_MSG_LEN, "no client named %s, please register first\n", p_msg->name);
+		snprintf (w_buf, MAX_MSG_LEN, "No client named %s, please register first\n", p_msg->name);
 	}
 	else
 	{
+		user_infos[user_idx].conn_fd = -1;
+		user_infos[i].conn_fd = cli_fd;
 		snprintf (w_buf, MAX_MSG_LEN, "Hi %s, you log in success, now you can chat with your friends\n", p_msg->name);
 	}
 	writen (cli_fd, w_buf, strlen (w_buf));
@@ -126,7 +128,7 @@ int handle_client_msg (int cli_fd, int user_idx, user_info_t *user_infos, fd_set
 		}
 		case MSG_LOG_IN:
 		{
-			handle_login_msg (cli_fd, p_head, user_infos, cur_max_cli_num);
+			handle_login_msg (cli_fd, user_idx, p_head, user_infos, cur_max_cli_num);
 			break;	
 		}
 		case MSG_DATA:
