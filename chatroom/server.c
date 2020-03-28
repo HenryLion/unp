@@ -83,7 +83,7 @@ int handle_data_msg (int cli_fd, msg_header_t* p_head, user_info_t *user_infos, 
 	return 0;
 }
 
-int handle_client_msg (int cli_fd, int user_idx, user_info_t *user_infos, fd_set *rset, int cur_max_cli_num)
+int handle_client_msg (int cli_fd, int user_idx, user_info_t *user_infos, fd_set *rset, int cur_max_cli_num, FILE *fp)
 {
 	int nread;
 	char *ptr;
@@ -112,6 +112,10 @@ int handle_client_msg (int cli_fd, int user_idx, user_info_t *user_infos, fd_set
 				// 用户不存在,第一次注册
 				memcpy (user_infos[user_idx].name, ((register_msg_t*)ptr)->name, NAME_LEN);
 				memcpy (user_infos[user_idx].pw, ((register_msg_t*)ptr)->password, PW_LEN);
+				snprintf (w_buf, MAX_MSG_LEN, "%s\t%s\n", user_infos[user_idx].name, user_infos[user_idx].pw);
+				fputs (w_buf, fp);
+				fflush (fp);
+				memset (w_buf, 0, sizeof (w_buf));
 				snprintf (w_buf, MAX_MSG_LEN, "Hi %s, you register successful, user_idx = %d.", ((register_msg_t*)ptr)->name, user_idx);
 			}
 			else
@@ -176,18 +180,6 @@ int get_client_info (const char* file_name,user_info_t *cli_infos)
 }
 
 
-void print_user_info (char * prompt, user_info_t *cli)
-{
-	int i;
-	printf ("%s\n", prompt);
-	for (i = 0; i < 3; ++i)
-	{
-		printf ("%s == %s\n", cli[i].name, cli[i].pw);
-	}
-	printf ("---------------------------\n");
-	return ;
-}
-
 int main (void)
 {
 	int listen_fd, conn_fd, sock_fd;
@@ -198,9 +190,6 @@ int main (void)
 	int nready;
 	FILE *c_fp = NULL;
 	
-/*
-	c_fp = fopen ("./client.info", "a+");
-*/
 	struct sockaddr_in sockaddr;
 	bzero (&sockaddr, sizeof (sockaddr));
 
@@ -223,6 +212,13 @@ int main (void)
 	for (i = 0; i < CLIENT_MAX_NUM; ++i)
 	{
 		cli_infos[i].conn_fd = -1;
+	}
+
+	c_fp = fopen ("./client.info", "a+"); // 此处打开文件是为了有新用户注册时写入用户信息
+	if (NULL == c_fp)
+	{
+		printf ("fopen client.info error\n");
+		exit (-1);
 	}
 
 	fd_set rset,allset;
@@ -269,7 +265,7 @@ int main (void)
 			if ( FD_ISSET (sock_fd, &rset))
 			{
 
-				handle_client_msg (sock_fd, i, cli_infos, &allset, max_i);
+				handle_client_msg (sock_fd, i, cli_infos, &allset, max_i, c_fp);
 				if (--nready <= 0)
 					break;
 			}
