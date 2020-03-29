@@ -97,6 +97,62 @@ int handle_data_msg (int cli_fd, msg_header_t* p_head, user_info_t *user_infos, 
 	}
 	return 0;
 }
+int handle_file_send_msg (int cli_fd, msg_header_t* p_head, user_info_t *user_infos, int cur_max_cli_num)
+{
+	char client_name[NAME_LEN] = {0};
+	char w_buf [MAX_MSG_LEN] = {0};
+
+	int fd = 0;
+	if (NULL == p_head || NULL == user_infos)
+		return ERROR;
+
+	char *r_buf = (char*)malloc (ntohl (p_head->m_len) + sizeof (msg_header_t) + 1);
+	if (NULL == r_buf)
+		return -1;
+	
+
+	int i;
+	for (i = 0; i <= cur_max_cli_num; ++i)
+	{
+		if (user_infos[i].conn_fd == cli_fd)
+		{
+			memcpy (client_name, user_infos[i].name, strlen (user_infos[i].name));
+			break;
+		}
+	}
+
+	readn (cli_fd, r_buf+sizeof(msg_header_t), ntohl (p_head->m_len));
+
+	memcpy (r_buf, p_head, sizeof (msg_header_t));
+	snprintf (w_buf, MAX_MSG_LEN, " %s send you file: %s. \n", client_name, p_head->file_name);
+
+	if ( !strcmp (p_head->chat_with, "alluser") ) // send file to all clients
+	{
+		for (i = 0; i <= cur_max_cli_num; ++i)
+		{
+			if ( (user_infos[i].conn_fd != -1) && (user_infos[i].conn_fd != cli_fd) )
+			{
+				writen (user_infos[i].conn_fd, r_buf, ntohl(p_head->m_len) + sizeof (msg_header_t));
+				writen (user_infos[i].conn_fd, w_buf, strlen(w_buf));
+			}
+		}
+	}
+	else  // send file to specific clients
+	{
+		for ( i = 0; i <= cur_max_cli_num; ++i )
+		{
+			if (user_infos[i].conn_fd == cli_fd)
+				continue;
+			if ( !strcmp (p_head->chat_with, user_infos[i].name))
+			{
+				writen (user_infos[i].conn_fd, r_buf, ntohl (p_head->m_len) + sizeof (msg_header_t) );
+				writen (user_infos[i].conn_fd, w_buf, strlen(w_buf));
+			}
+		}
+	}
+	return 0;
+
+}
 
 int handle_client_msg (int cli_fd, int user_idx, user_info_t *user_infos, fd_set *rset, int cur_max_cli_num, FILE *fp)
 {
@@ -153,6 +209,11 @@ int handle_client_msg (int cli_fd, int user_idx, user_info_t *user_infos, fd_set
 		case MSG_DATA:
 		{
 			handle_data_msg (cli_fd, p_head, user_infos, cur_max_cli_num);	
+			break;
+		}
+		case MSG_FILE_SEND:
+		{
+			handle_file_send_msg (cli_fd, p_head, user_infos, cur_max_cli_num);
 			break;
 		}
 		default:

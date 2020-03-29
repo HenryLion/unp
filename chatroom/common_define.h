@@ -22,6 +22,7 @@ typedef struct msg_header
 	e_msg_type m_type;
 	int m_len;
 	char chat_with[NAME_LEN]; // 表示消息发给那个客户或者发给全体客户端
+	char file_name[NAME_LEN]; // 表示要发送文件的文件名
 } msg_header_t;
 
 typedef struct register_msg

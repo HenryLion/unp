@@ -1,6 +1,7 @@
+#include "unp.h"
 #include <stdio.h>
 
-int main (void)
+void test_scanf ()
 {
 	int choice;
 
@@ -9,15 +10,17 @@ int main (void)
 
 	printf ("please input your choice: ");
 	scanf ("%d", &choice);
-
+	getchar ();
 	switch (choice)
 	{
 		case 1:
 		{
 			printf ("please input your name: ");
 			scanf ("%s", name);
+			getchar ();
 			printf ("please input your pw: ");
 			scanf ("%s", pw);
+			getchar ();
 			break;
 		}
 		default:
@@ -26,5 +29,42 @@ int main (void)
 
 	printf ("your name is: %s, pw is %s\n", name, pw);
 
+	return ;
+}
+
+void test_read_file (char *file_name)
+{
+	if (NULL == file_name)
+		return;
+	
+	if (access (file_name, F_OK) < 0)
+		return;
+	int fd;
+	struct stat buf;
+
+	if (stat (file_name, &buf) < 0)
+		return;
+	char *p_file = (char *)malloc (buf.st_size + 1);
+	
+	 if ( (fd = open (file_name, O_RDONLY, S_IRUSR|S_IRGRP) ) < 0)
+		 return ;
+
+	readn (fd, p_file, buf.st_size);
+	p_file[buf.st_size] = '\0';
+
+	fputs (p_file, stdout);
+	fflush (stdout);
+
+	printf ("file size is: %ld\n", buf.st_size);
+
+	free (p_file);
+	return;
+}
+	
+
+int main (void)
+{
+	//test_scanf ();
+	test_read_file ("./test.c");
 	return 0;
 }

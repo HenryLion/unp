@@ -46,6 +46,72 @@ int execute_reg_log_msg (int sock_fd, e_msg_type m_type)
 	
 }
 
+/*  判断文件是否存在，如果存在则file_len返回文件的长度 */
+int is_file_exist (char *file_name, off_t &file_len)
+{
+	if (NULL == file_name)
+		return 0;
+	if (access (file_name, F_OK) < 0)
+		return 0;
+	struct stat buf;
+	if (stat (file_name, &buf) < 0)
+		return 0;
+	*file_len = buf.st_size;
+
+	return 1;
+}
+
+
+int execute_file_send_msg (int sock_fd)
+{
+	char file_name[NAME_LEN] = {0};
+	char chat_name[NAME_LEN] = {0};
+	char r_buf[MAX_MSG_LEN] = {0};
+	printf ("File you want to send: ");
+	scanf ("%s", file_name);
+	getchar ();
+	printf ("Send to who: ");
+	scanf ("%s", chat_name);
+	getchar ();
+
+	int fd;
+	off_t f_len = 0;
+	if (!is_file_exist (file_name, &f_len))
+	{
+		printf ("file_name %s not exist.\n", file_name);
+		return -1;
+	}
+	char *w_buf = (char *)malloc (sizeof (msg_header_t) + f_len + 1);
+	if (NULL == w_buf)
+	{
+		printf ("malloc return NULL!\n"):
+		return -1;
+	}
+	memset (w_buf, 0, sizeof (msg_header_t) + f_len + 1);
+	msg_header_t *p_head = (msg_header_t*)w_buf;
+	p_head->m_type = MSG_FILE_SEND;
+	p_head->m_len = htonl (f_len);
+	memcpy (p_head->chat_with, chat_name, strlen (chat_name));
+	memcpy (p_head->file_name, file_name, strlen (file_name));
+
+	if ( (fd = open (file_name, O_RDONLY, S_IRUSR|S_IRGRP)) < 0)
+	{
+		printf ("open send file error\n");
+		return -1;
+	}
+
+	readn (fd, w_buf+sizeof(msg_header_t), f_len);
+
+	writen (sock_fd, w_buf, sizeof(msg_header_t)+f_len);
+
+	read (sock_fd, r_buf, MAX_MSG_LEN);
+
+	fputs (r_buf, stdout);
+	fflush (stdout);
+	free (w_buf);
+	return 0;
+}
+
 /* 获取聊天的对象名,当用户输入开头是[xxx]表示用户切换聊天对象为xxx */
 /* input: 表示用户的输入 [all_client] 表示发给所有人, [name] 表示只发给name */
 /* name: 从用户的输入中获取的消息发送对象 */
@@ -139,6 +205,8 @@ int execute_chat_msg (FILE *fp, int sock_fd)
 			get_chat_client (p_msg_body, new_chat_with, &real_msg_pos);
 			if (strlen (new_chat_with) != 0)
 			{
+				if ( !strcmp (new_chat_with, "filesend") ) // 用户想发送文件,则跳出循环让用户进入处理MSG_FILE_SEND模式
+					break;
 				real_msg_len = strlen(p_msg_body) - real_msg_pos;
 				memcpy (p_msg_body, p_msg_body+real_msg_pos, real_msg_len);
 				p_msg_body[real_msg_len] = '\0';
@@ -198,6 +266,9 @@ int main (int argc, char *argv[])
 			case MSG_REGISTER:
 			case MSG_LOG_IN:
 				execute_reg_log_msg (sock_fd, (e_msg_type)choice);
+				break;
+			case MSG_FILE_SEND:
+				execute_file_send_msg (sock_fd);
 				break;
 			default:
 				break;
