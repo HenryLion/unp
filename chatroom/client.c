@@ -10,7 +10,7 @@ void print_prompt ()
 	printf ("*****************************\n");
 	printf ("[1] register\n");
 	printf ("[2] log in\n");
-	printf ("[3] file send\n");
+	printf ("[3] [sendfile]\n");
 	printf ("[4] log out\n");
 	printf ("*****************************\n");
 	printf ("please choose operation: ");
@@ -240,7 +240,7 @@ int execute_chat_msg (FILE *fp, int sock_fd)
 			get_chat_client (p_msg_body, new_chat_with, &real_msg_pos);
 			if (strlen (new_chat_with) != 0)
 			{
-				if ( !strcmp (new_chat_with, "filesend") ) // 用户想发送文件,则跳出循环让用户进入处理MSG_FILE_SEND模式
+				if ( !strcmp (new_chat_with, "sendfile") ) // 用户想发送文件,则跳出循环让用户进入处理MSG_FILE_SEND模式
 					break;
 				real_msg_len = strlen(p_msg_body) - real_msg_pos;
 				memcpy (p_msg_body, p_msg_body+real_msg_pos, real_msg_len);
