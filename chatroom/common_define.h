@@ -12,9 +12,9 @@ typedef enum msg_type
 {
 	MSG_REGISTER = 1,
 	MSG_LOG_IN,
-	MSG_DATA,
 	MSG_FILE_SEND,
-	MSG_LOG_OUT
+	MSG_LOG_OUT,
+	MSG_DATA
 } e_msg_type;
 
 typedef struct msg_header

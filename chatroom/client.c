@@ -1,6 +1,8 @@
 #include "unp.h"
 #include "common_define.h"
 
+
+char g_client_name[NAME_LEN] = {0};
 int execute_chat_msg (FILE *, int);
 
 void print_prompt ()
@@ -27,6 +29,8 @@ int execute_reg_log_msg (int sock_fd, e_msg_type m_type)
 	printf ("please input your pw: ");
 	scanf ("%s", r_msg.password);
 	getchar ();
+
+	memcpy (g_client_name, r_msg.name, strlen (r_msg.name));
 	msg_header_t *p_head = (msg_header_t *)msg;
 	p_head->m_type = m_type;
 	p_head->m_len = htonl (sizeof (r_msg));
@@ -36,6 +40,8 @@ int execute_reg_log_msg (int sock_fd, e_msg_type m_type)
 
 	Writen (sock_fd, msg, sizeof(msg_header_t) + sizeof(r_msg));
 
+	readn (sock_fd, r_buf, 3);
+	memset (r_buf, 0, sizeof(r_buf));
 	read (sock_fd, r_buf, 1024);
 	printf ("%s\n", r_buf);
 
@@ -47,7 +53,7 @@ int execute_reg_log_msg (int sock_fd, e_msg_type m_type)
 }
 
 /*  判断文件是否存在，如果存在则file_len返回文件的长度 */
-int is_file_exist (char *file_name, off_t &file_len)
+int is_file_exist (char *file_name, off_t *file_len)
 {
 	if (NULL == file_name)
 		return 0;
@@ -84,7 +90,7 @@ int execute_file_send_msg (int sock_fd)
 	char *w_buf = (char *)malloc (sizeof (msg_header_t) + f_len + 1);
 	if (NULL == w_buf)
 	{
-		printf ("malloc return NULL!\n"):
+		printf ("malloc return NULL!\n");
 		return -1;
 	}
 	memset (w_buf, 0, sizeof (msg_header_t) + f_len + 1);
@@ -104,11 +110,10 @@ int execute_file_send_msg (int sock_fd)
 
 	writen (sock_fd, w_buf, sizeof(msg_header_t)+f_len);
 
-	read (sock_fd, r_buf, MAX_MSG_LEN);
-
-	fputs (r_buf, stdout);
-	fflush (stdout);
 	free (w_buf);
+	close (fd);
+
+	execute_chat_msg (stdin, sock_fd); // 发送完文件后还是回到聊天状态
 	return 0;
 }
 
@@ -172,10 +177,38 @@ int get_chat_client (char *input, char *c_name, int *real_msg_pos)
 	return 0;
 }
 
+int get_msg_and_create_file (int sock_fd, msg_header_t *msg_head)
+{
+	int fd;
+	if (NULL == msg_head)
+		return -1;
+	int file_len = ntohl (msg_head->m_len);
+	char file_name[NAME_LEN] = {0};
+	memcpy (file_name, g_client_name, strlen (g_client_name));
+	strncat (file_name, "_", 1);
+	strncat (file_name, msg_head->file_name, strlen (msg_head->file_name));
+
+	char *p_file = (char *)malloc (file_len + 1);
+	if (NULL == p_file)
+		return -1;
+	
+	fd = open (file_name, O_RDWR|O_CREAT|O_TRUNC, S_IWUSR|S_IRUSR|S_IWGRP|S_IRGRP);
+	if (fd < 0)
+		return -1;
+	
+	readn (sock_fd, p_file, file_len);
+
+	writen (fd, p_file, file_len);
+
+	free (p_file);
+	close (fd);
+}	
+
 int execute_chat_msg (FILE *fp, int sock_fd)
 {
 	char w_buf[MAX_MSG_LEN] = {0};
 	char r_buf[MAX_MSG_LEN] = {0};
+	char msg_flag[64] = {0};
 	char chat_with [NAME_LEN] = {"alluser"};
 	char new_chat_with[NAME_LEN] = {0};
 	fd_set f_set;
@@ -183,6 +216,8 @@ int execute_chat_msg (FILE *fp, int sock_fd)
 	int select_fd;
 	char* p_msg_body = NULL;
 	msg_header_t *p_head = NULL;
+	msg_header_t msg_head;
+	bzero (&msg_head, sizeof(msg_head));
 	p_head = (msg_header_t*)w_buf;
 	p_head->m_type = MSG_DATA;
 	p_msg_body = w_buf + sizeof (msg_header_t);
@@ -222,9 +257,28 @@ int execute_chat_msg (FILE *fp, int sock_fd)
 		}
 		if (FD_ISSET (sock_fd, &f_set))
 		{
-			memset (r_buf, 0, sizeof(r_buf));
-			read (sock_fd, r_buf, 1024);
-			fputs (r_buf, stdout);
+			memset (msg_flag, 0, sizeof (msg_flag));
+			readn (sock_fd, msg_flag, 3); // 先读取3个字节的消息类型标记
+			if ('L' != msg_flag[1] && 'R' != msg_flag[1] && 'D' != msg_flag[1] && 'F' != msg_flag[1])
+			{
+				printf ("%s\n", msg_flag);
+				printf ("server send invalid msg content!\n");
+			}
+
+			if ('F' != msg_flag[1]) // 不是文件传输消息则直接输出
+			{
+				memset (r_buf, 0, sizeof(r_buf));
+				read (sock_fd, r_buf, 1024);
+				fputs (r_buf, stdout);
+			}
+			else // 文件传输消息
+			{
+				readn (sock_fd, &msg_head, sizeof (msg_head));
+				get_msg_and_create_file (sock_fd, &msg_head);
+				memset (r_buf, 0, sizeof(r_buf));
+				read (sock_fd, r_buf, 1024);
+				fputs (r_buf, stdout);
+			}
 		}
 	}
 

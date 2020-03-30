@@ -40,13 +40,13 @@ int handle_login_msg (int cli_fd, int user_idx, msg_header_t *p_head, user_info_
 	}
 	if (i > cur_max_cli_num)
 	{
-		snprintf (w_buf, MAX_MSG_LEN, "No client named %s, please register first\n", p_msg->name);
+		snprintf (w_buf, MAX_MSG_LEN, "[L]No client named %s, please register first\n", p_msg->name);
 	}
 	else
 	{
 		user_infos[user_idx].conn_fd = -1;
 		user_infos[i].conn_fd = cli_fd;
-		snprintf (w_buf, MAX_MSG_LEN, "Hi %s, you log in success, now you can chat with your friends\n", p_msg->name);
+		snprintf (w_buf, MAX_MSG_LEN, "[L]Hi %s, you log in success, now you can chat with your friends\n", p_msg->name);
 	}
 	writen (cli_fd, w_buf, strlen (w_buf));
 	return 0;
@@ -72,7 +72,7 @@ int handle_data_msg (int cli_fd, msg_header_t* p_head, user_info_t *user_infos, 
 	}
 
 	readn (cli_fd, r_buf, ntohl (p_head->m_len));
-	snprintf (w_buf, MAX_MSG_LEN, "%s say :\r\n\t%s", client_name, r_buf);
+	snprintf (w_buf, MAX_MSG_LEN, "[D]%s say :\r\n\t%s", client_name, r_buf);
 	if ( !strcmp (p_head->chat_with, "alluser") ) // send msg to all clients
 	{
 		for (i = 0; i <= cur_max_cli_num; ++i)
@@ -106,7 +106,8 @@ int handle_file_send_msg (int cli_fd, msg_header_t* p_head, user_info_t *user_in
 	if (NULL == p_head || NULL == user_infos)
 		return ERROR;
 
-	char *r_buf = (char*)malloc (ntohl (p_head->m_len) + sizeof (msg_header_t) + 1);
+	/*   | [X] | header | data | */   // 写给client端的结构 [X]表示消息类型
+	char *r_buf = (char*)malloc (ntohl (p_head->m_len) + sizeof (msg_header_t) + 1 + 3); // 多3个字节用来给客户端反馈此消息类型
 	if (NULL == r_buf)
 		return -1;
 	
@@ -121,9 +122,10 @@ int handle_file_send_msg (int cli_fd, msg_header_t* p_head, user_info_t *user_in
 		}
 	}
 
-	readn (cli_fd, r_buf+sizeof(msg_header_t), ntohl (p_head->m_len));
+	memcpy (r_buf, "[F]", 3);
+	memcpy (r_buf+3, p_head, sizeof (msg_header_t));
+	readn (cli_fd, r_buf+sizeof(msg_header_t)+3, ntohl (p_head->m_len));
 
-	memcpy (r_buf, p_head, sizeof (msg_header_t));
 	snprintf (w_buf, MAX_MSG_LEN, " %s send you file: %s. \n", client_name, p_head->file_name);
 
 	if ( !strcmp (p_head->chat_with, "alluser") ) // send file to all clients
@@ -132,7 +134,7 @@ int handle_file_send_msg (int cli_fd, msg_header_t* p_head, user_info_t *user_in
 		{
 			if ( (user_infos[i].conn_fd != -1) && (user_infos[i].conn_fd != cli_fd) )
 			{
-				writen (user_infos[i].conn_fd, r_buf, ntohl(p_head->m_len) + sizeof (msg_header_t));
+				writen (user_infos[i].conn_fd, r_buf, ntohl(p_head->m_len) + sizeof (msg_header_t)+3);
 				writen (user_infos[i].conn_fd, w_buf, strlen(w_buf));
 			}
 		}
@@ -145,7 +147,7 @@ int handle_file_send_msg (int cli_fd, msg_header_t* p_head, user_info_t *user_in
 				continue;
 			if ( !strcmp (p_head->chat_with, user_infos[i].name))
 			{
-				writen (user_infos[i].conn_fd, r_buf, ntohl (p_head->m_len) + sizeof (msg_header_t) );
+				writen (user_infos[i].conn_fd, r_buf, ntohl (p_head->m_len) + sizeof (msg_header_t) + 3 );
 				writen (user_infos[i].conn_fd, w_buf, strlen(w_buf));
 			}
 		}
@@ -187,7 +189,7 @@ int handle_client_msg (int cli_fd, int user_idx, user_info_t *user_infos, fd_set
 				fputs (w_buf, fp);
 				fflush (fp);
 				memset (w_buf, 0, sizeof (w_buf));
-				snprintf (w_buf, MAX_MSG_LEN, "Hi %s, you register successful, user_idx = %d.", ((register_msg_t*)ptr)->name, user_idx);
+				snprintf (w_buf, MAX_MSG_LEN, "[R]Hi %s, you register successful, user_idx = %d.", ((register_msg_t*)ptr)->name, user_idx);
 			}
 			else
 			{
@@ -196,7 +198,7 @@ int handle_client_msg (int cli_fd, int user_idx, user_info_t *user_infos, fd_set
 				if (user_infos[idx].conn_fd == -1) // 用户已经存在但是未登录,如果用户已经存在且已经登录，则不能把cli_fd赋值给已存在用户
 					user_infos[idx].conn_fd = cli_fd;
 
-				snprintf (w_buf, MAX_MSG_LEN, "Name %s has existed,please choose another one.", ((register_msg_t*)ptr)->name); 
+				snprintf (w_buf, MAX_MSG_LEN, "[R]Name %s has existed,please choose another one.", ((register_msg_t*)ptr)->name); 
 			}
 			writen (cli_fd, w_buf, strlen (w_buf));
 			break;
