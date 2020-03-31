@@ -118,9 +118,10 @@ int execute_file_send_msg (int sock_fd)
 }
 
 /* 获取聊天的对象名,当用户输入开头是[xxx]表示用户切换聊天对象为xxx */
-/* input: 表示用户的输入 [all_client] 表示发给所有人, [name] 表示只发给name */
+/* input: 表示用户的输入 [alluser] 表示发给所有人, [hanbin] 表示只发给hanbin */
 /* name: 从用户的输入中获取的消息发送对象 */
 /* real_msg_pos: 如果有[xxx]的话，real_msg_pos 返回消息开始的真正位置 */
+/* 注: input 为[sendfile]时表示特殊含义，指用户想要发送文件,所以这就要求用户名不能为“sendfile” */
 int get_chat_client (char *input, char *c_name, int *real_msg_pos)
 {
 	if (NULL == input || NULL == c_name || NULL == real_msg_pos)

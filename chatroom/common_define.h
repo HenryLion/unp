@@ -40,5 +40,16 @@ typedef struct user_info
 	int conn_fd;
 } user_info_t;
 
+typedef struct node 
+{
+	char *msg;
+	struct node *next;
+} node_t;
+
+typedef struct history_head
+{
+	char name[NAME_LEN];
+	node_t *node;
+} history_head_t;
 
 #endif
