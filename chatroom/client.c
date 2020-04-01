@@ -158,7 +158,10 @@ int get_chat_client (char *input, char *c_name, int *real_msg_pos)
 			continue;
 		}
 		if ('[' != *p)
+		{
+			*real_msg_pos = 0;
 			return 0; // 这是个普通消息，不用转变聊天对象
+		}
 		else
 		{
 			record_name = 1;
@@ -237,18 +240,14 @@ int execute_chat_msg (FILE *fp, int sock_fd)
 			if (fgets (p_msg_body, MAX_MSG_LEN-sizeof(msg_header_t), fp) == NULL)
 				return -1;
 			
-			printf ("p_msg_body = %s\n", p_msg_body);
 			real_msg_pos = 0;
 			get_chat_client (p_msg_body, new_chat_with, &real_msg_pos);
-			printf ("real_msg_pos = %d\n", real_msg_pos);
 			if (strlen (new_chat_with) != 0)
 			{
 				if ( !strcmp (new_chat_with, "sendfile") ) // 用户想发送文件,则跳出循环让用户进入处理MSG_FILE_SEND模式
 					break;
 				real_msg_len = strlen(p_msg_body) - real_msg_pos;
-				printf ("real_msg_len = %d\n", real_msg_len);
-				memcpy (p_msg_body, p_msg_body+real_msg_pos, real_msg_len);
-				printf ("p_msg_body2 = %s\n", p_msg_body);
+				memmove (p_msg_body, p_msg_body+real_msg_pos, real_msg_len);
 				p_msg_body[real_msg_len] = '\0';
 				memcpy (chat_with, new_chat_with, strlen (new_chat_with));
 				chat_with[strlen(new_chat_with)] = '\0';
@@ -259,7 +258,6 @@ int execute_chat_msg (FILE *fp, int sock_fd)
 
 			p_head->m_len = htonl(strlen (p_msg_body));
 			writen (sock_fd, w_buf, strlen (p_msg_body) + sizeof (msg_header_t));
-			printf ("write to server w_buf = %s.\n", w_buf+sizeof(msg_header_t));
 		}
 		if (FD_ISSET (sock_fd, &f_set))
 		{

@@ -1,6 +1,15 @@
 #include "unp.h"
 #include <stdio.h>
 
+void test_str_copy (char *str)
+{
+	int len = strlen (str);
+	memcpy (str, str+1, len-1); // memcpy 拷贝时内存地址不能overlap,否则需要使用memmove
+	str[len-1] = '\0';
+	printf ("%s\n", str);
+	return;
+}
+
 void test_scanf ()
 {
 	int choice;
@@ -65,6 +74,8 @@ void test_read_file (char *file_name)
 int main (void)
 {
 	//test_scanf ();
-	test_read_file ("./test.c");
+	//test_read_file ("./test.c");
+	char str[64] = "hanbin";
+	test_str_copy (str);
 	return 0;
 }
