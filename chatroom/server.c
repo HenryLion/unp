@@ -29,14 +29,15 @@ int is_client_has_history_msg (char *client_name)
 {
 	if (NULL == client_name)
 		return -1;
+
 	int i;
 	for (i = 0; i < CLIENT_MAX_NUM; ++i)
 	{
 		if ( !strcmp (client_name, cli_history[i].name) )
 			break;
 	}
-	printf ("i = %d, point = %p\n", i, cli_history[i].node->next);
-	if (i < CLIENT_MAX_NUM && cli_history[i].node->next != NULL)
+
+	if (i < CLIENT_MAX_NUM && cli_history[i].node != NULL)
 	{
 		return i;
 	}
@@ -46,23 +47,25 @@ int is_client_has_history_msg (char *client_name)
 
 int delete_client_history_msg (node_t *head)
 {
-	node_t *p = NULL;
-	while (p = head->next)
+	node_t *p = head;
+	while (p)
 	{
-		head->next = p->next;
+		head = p->next;
 		free (p->msg);
 		p->next = NULL;
 		free (p);
+		p = head;
 	}
 	return 0;
 }
 
 int send_client_history_msg (int sock_fd, node_t* head)
 {
-	node_t *p = head->next;
+	node_t *p = head;
 	while (p)
 	{
-		write (sock_fd, p->msg, strlen (p->msg));
+		if (NULL != p->msg)
+			write (sock_fd, p->msg, strlen (p->msg));
 		p = p->next;
 	}
 	
@@ -89,6 +92,7 @@ int add_client_history_msg (char *client_name, char *content)
 	{
 		if ( (strlen (cli_history[i].name) == 0) && (first_empty_pos == -1) )
 			first_empty_pos = i; //找到第一个空位
+
 		if (!strcmp (client_name, cli_history[i].name))
 		{
 			p = cli_history[i].node;
@@ -104,9 +108,8 @@ int add_client_history_msg (char *client_name, char *content)
 	
 	if (-1 != first_empty_pos)
 	{
-		printf ("add msg to list: pos = %d.\n", first_empty_pos);
-		strcmp (cli_history[first_empty_pos].name, client_name);
-		cli_history[first_empty_pos].node->next = new_node;
+		strcpy (cli_history[first_empty_pos].name, client_name);
+		cli_history[first_empty_pos].node = new_node;
 	}
 
 	return 0;
@@ -141,7 +144,6 @@ int handle_login_msg (int cli_fd, int user_idx, msg_header_t *p_head, user_info_
 
 		// 登录成功后，查看有没有此用户的离线消息需要发送
 		history_idx = is_client_has_history_msg (p_msg->name);
-		printf ("history_idx = %d.\n", history_idx);
 		if ( history_idx  >= 0)
 		{
 			printf ("will send offline msg to %s.\n", p_msg->name);
@@ -173,7 +175,7 @@ int handle_data_msg (int cli_fd, msg_header_t* p_head, user_info_t *user_infos, 
 	}
 
 	readn (cli_fd, r_buf, ntohl (p_head->m_len));
-	snprintf (w_buf, MAX_MSG_LEN, "[D]%s say :\r\n\t%s", client_name, r_buf);
+	snprintf (w_buf, MAX_MSG_LEN, "[D]%s say :\n\t%s", client_name, r_buf);
 	if ( !strcmp (p_head->chat_with, "alluser") ) // send msg to all clients
 	{
 		for (i = 0; i <= cur_max_cli_num; ++i)
@@ -194,7 +196,6 @@ int handle_data_msg (int cli_fd, msg_header_t* p_head, user_info_t *user_infos, 
 			{
 				if (user_infos[i].conn_fd == -1) // 如果用户不在线，则将消息存放在离线消息链表
 				{
-					printf ("add_client_history_msg, to %s 's list.\n", p_head->chat_with);
 					add_client_history_msg (p_head->chat_with, w_buf);
 				}
 				else // 用户在线则直接将消息发送给用户
@@ -393,12 +394,6 @@ int main (void)
 
 	memset (cli_infos, 0, sizeof (cli_infos));
 	memset (cli_history, 0, sizeof (cli_history));
-	for (i = 0; i < CLIENT_MAX_NUM; ++i)
-	{
-		cli_history[i].node = (node_t *)malloc (sizeof (node_t));
-		cli_history[i].node->msg = NULL;
-		cli_history[i].node->next = NULL;
-	}
 
 	if (is_file_exist ("./client.info"))
 		max_i = get_client_info ("./client.info", cli_infos);
