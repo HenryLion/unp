@@ -5,17 +5,28 @@
 char g_client_name[NAME_LEN] = {0};
 int execute_chat_msg (FILE *, int);
 
+/********************************************
+ * 功能：给用户提示可以进行哪些操作
+ * author: herbert
+ * date: 2020-04-02
+ *******************************************/
 void print_prompt ()
 {
 	printf ("*****************************\n");
 	printf ("[1] register\n");
 	printf ("[2] log in\n");
 	printf ("[3] [sendfile]\n");
-	printf ("[4] log out\n");
 	printf ("*****************************\n");
 	printf ("please choose operation: ");
 }
 
+/********************************************
+ * 功能：客户端发起注册或者登录操作
+ * sock_fd: 客户端建立的socket fd
+ * m_type: 消息类型
+ * author: herbert
+ * date: 2020-04-02
+ *******************************************/
 int execute_reg_log_msg (int sock_fd, e_msg_type m_type)
 {
 	char msg[MAX_MSG_LEN] = {0};
@@ -52,7 +63,13 @@ int execute_reg_log_msg (int sock_fd, e_msg_type m_type)
 	
 }
 
-/*  判断文件是否存在，如果存在则file_len返回文件的长度 */
+/********************************************
+ * 功能：检查文件是否存在，如果存在则file_len返回文件长度
+ * file_name: 文件名
+ * file_len: [out] 文件长度
+ * author: herbert
+ * date: 2020-04-02
+ *******************************************/
 int is_file_exist (char *file_name, off_t *file_len)
 {
 	if (NULL == file_name)
@@ -68,6 +85,12 @@ int is_file_exist (char *file_name, off_t *file_len)
 }
 
 
+/********************************************
+ * 功能：客户端发起文件发送操作
+ * sock_fd: 客户端链接的sockfd
+ * author: herbert
+ * date: 2020-04-02
+ *******************************************/
 int execute_file_send_msg (int sock_fd)
 {
 	char file_name[NAME_LEN] = {0};
@@ -181,6 +204,14 @@ int get_chat_client (char *input, char *c_name, int *real_msg_pos)
 	return 0;
 }
 
+
+/**************************************************
+* function: 客户端收到服务端的文件传送消息后在客户端本地生产新文件
+* sock_fd: client sock fd
+* msg_head: include file length, file name info etc
+* author: herbert
+* date: 2020-04-02
+**************************************************/
 int get_msg_and_create_file (int sock_fd, msg_header_t *msg_head)
 {
 	int fd;
@@ -208,6 +239,14 @@ int get_msg_and_create_file (int sock_fd, msg_header_t *msg_head)
 	close (fd);
 }	
 
+
+/*****************************************************
+* function: execute client chat message
+* fp: == stdin
+* sock_fd: client sock fd
+* author: herbert
+* date: 2020-04-02
+*****************************************************/
 int execute_chat_msg (FILE *fp, int sock_fd)
 {
 	char w_buf[MAX_MSG_LEN] = {0};

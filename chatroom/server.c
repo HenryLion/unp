@@ -5,7 +5,13 @@
 
 history_head_t cli_history[CLIENT_MAX_NUM]; //用户离线消息链表
 
-/* 判断用户是否存在,如果已经存在则返回其在数组中的位置,否则返回-1表示不存在 */
+/*********************************************************
+* function: find client info in user_infos array
+* user_infos: where user info stored
+* cur_max_cli_num: the max num of client has beed stored
+* c_name: client name
+* return: pos of client or -1 when client not exist
+*********************************************************/
 int is_client_exist (user_info_t *user_infos, int cur_max_cli_num, char *c_name)
 {
 	if (NULL == user_infos || NULL == c_name)
@@ -25,6 +31,13 @@ int is_client_exist (user_info_t *user_infos, int cur_max_cli_num, char *c_name)
 		return i;
 }
 
+/****************************************************
+* function: determine whether client has history msg when client log in
+* client_name: client name
+* author: herbert
+* date: 2020-04-02
+* return: -1 means no history msg, >=0 means history msg store array pos
+****************************************************/
 int is_client_has_history_msg (char *client_name)
 {
 	if (NULL == client_name)
@@ -45,6 +58,12 @@ int is_client_has_history_msg (char *client_name)
 		return -1;
 }
 
+/**********************************************
+* function: delete client history message when send all the client's history msg
+* head: client's history msg linked list
+* author: herbert
+* date : 2020-04-02
+*********************************************/
 int delete_client_history_msg (node_t *head)
 {
 	node_t *p = head;
@@ -59,6 +78,13 @@ int delete_client_history_msg (node_t *head)
 	return 0;
 }
 
+
+/************************************************
+* function: send client's history message
+* sock_fd: the client's socket id
+* head: the client's history message linked list head
+* Herbert 2020-04-02
+***********************************************/
 int send_client_history_msg (int sock_fd, node_t* head)
 {
 	node_t *p = head;
@@ -74,6 +100,12 @@ int send_client_history_msg (int sock_fd, node_t* head)
 	return 0;
 }
 
+/*******************************************
+* function: add client's msg to his history msg list when client is offline
+* client_name: client's name
+* content: message content
+* Herbert 2020-04-02
+******************************************/
 int add_client_history_msg (char *client_name, char *content)
 {
 	if (NULL == client_name)
@@ -115,7 +147,12 @@ int add_client_history_msg (char *client_name, char *content)
 	return 0;
 }
 
-
+/***********************************************************
+* funciont: deal with client's log in message
+* cli_fd: client's socket id;  user_idx:pos of client in usre_infos array; p_head: message header; 
+* user_infos: store clients's name and pw array; cur_max_cli_num: current max clients number
+* Herbert 2020-04-02
+***********************************************************/
 int handle_login_msg (int cli_fd, int user_idx, msg_header_t *p_head, user_info_t *user_infos, int cur_max_cli_num)
 {
 	char r_buf[MAX_MSG_LEN] = {0};
@@ -155,6 +192,13 @@ int handle_login_msg (int cli_fd, int user_idx, msg_header_t *p_head, user_info_
 	return 0;
 }
 
+
+/***********************************************************
+* funciont: deal with client's chat data message
+* cli_fd: client's socket id;  p_head: message header; 
+* user_infos: store clients's name and pw array; cur_max_cli_num: current max clients number
+* Herbert 2020-04-02
+***********************************************************/
 int handle_data_msg (int cli_fd, msg_header_t* p_head, user_info_t *user_infos, int cur_max_cli_num)
 {
 	char r_buf[MAX_MSG_LEN] = {0};
@@ -207,6 +251,14 @@ int handle_data_msg (int cli_fd, msg_header_t* p_head, user_info_t *user_infos, 
 	}
 	return 0;
 }
+
+
+/***********************************************************
+* funciont: deal with client's file send  message
+* cli_fd: client's socket id;  p_head: message header; 
+* user_infos: store clients's name and pw array; cur_max_cli_num: current max clients number
+* Herbert 2020-04-02
+**********************************************************/
 int handle_file_send_msg (int cli_fd, msg_header_t* p_head, user_info_t *user_infos, int cur_max_cli_num)
 {
 	char client_name[NAME_LEN] = {0};
@@ -266,6 +318,13 @@ int handle_file_send_msg (int cli_fd, msg_header_t* p_head, user_info_t *user_in
 
 }
 
+
+/***********************************************************
+* funciont: handle client message interface
+* cli_fd: client's socket id; user_idx: pos of client in cli_infos array; rset: listened fd set; fp: the file to store user_infos
+* user_infos: store clients's name and pw array; cur_max_cli_num: current max clients number
+* Herbert 2020-04-02
+*********************************************************/
 int handle_client_msg (int cli_fd, int user_idx, user_info_t *user_infos, fd_set *rset, int cur_max_cli_num, FILE *fp)
 {
 	int nread;
@@ -343,6 +402,12 @@ int is_file_exist (const char* file_name)
 	return 1;
 }
 
+/***********************************************************
+* funciont: get client's info from file (client.info)
+* file_name: the file which store user's info 
+* cli_infos: the array to store client's info
+* Herbert 2020-04-02
+***********************************************************/
 int get_client_info (const char* file_name,user_info_t *cli_infos)
 {
 	char cli_info[256] = {0};
